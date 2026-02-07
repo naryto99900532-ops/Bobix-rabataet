@@ -85,22 +85,54 @@ async function loadNews() {
             </div>
         `;
         
-        // Получаем новости с информацией об авторе
+        // Получаем новости (без связи с профилями в одном запросе)
         const { data: news, error } = await _supabase
             .from('news')
-            .select(`
-                *,
-                author:profiles(username)
-            `)
+            .select('*')
             .order('created_at', { ascending: false })
-            .limit(50); // Ограничиваем количество для производительности
+            .limit(50);
         
         if (error) {
             console.error('Ошибка загрузки новостей:', error);
             throw error;
         }
         
-        newsData = news || [];
+        // Получаем информацию об авторах отдельно
+        const authorIds = [...new Set(news.map(item => item.author_id))];
+        const authorPromises = authorIds.map(async (authorId) => {
+            const { data: profile } = await _supabase
+                .from('profiles')
+                .select('username, avatar_url')
+                .eq('id', authorId)
+                .single()
+                .catch(() => ({ data: null }));
+            
+            return { [authorId]: profile };
+        });
+        
+        const authorResults = await Promise.all(authorPromises);
+        const authorMap = Object.assign({}, ...authorResults);
+        
+        // Получаем количество комментариев для каждой новости
+        const newsWithDetails = await Promise.all(news.map(async (newsItem) => {
+            // Получаем количество комментариев
+            const { count: commentsCount } = await _supabase
+                .from('news_comments')
+                .select('*', { count: 'exact', head: true })
+                .eq('news_id', newsItem.id)
+                .catch(() => ({ count: 0 }));
+            
+            // Получаем автора
+            const author = authorMap[newsItem.author_id] || { username: 'Неизвестный автор' };
+            
+            return {
+                ...newsItem,
+                author: author,
+                comments_count: commentsCount || 0
+            };
+        }));
+        
+        newsData = newsWithDetails || [];
         
         // Отображаем новости
         renderNewsList(newsData);
