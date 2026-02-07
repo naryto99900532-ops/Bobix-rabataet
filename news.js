@@ -486,47 +486,54 @@ async function openNewsDetails(newsId) {
  * Открытие деталей новости
  * @param {string} newsId - ID новости
  */
+/**
+ * Открытие деталей новости
+ * @param {string} newsId - ID новости
+ */
 async function openNewsDetails(newsId) {
     try {
         currentNewsId = newsId;
         
         // Получаем данные новости
-        const { data: news, error } = await _supabase
+        const { data: news, error: newsError } = await _supabase
             .from('news')
             .select('*')
             .eq('id', newsId)
             .single();
         
-        if (error) {
-            throw error;
+        if (newsError) {
+            console.error('Ошибка загрузки новости:', newsError);
+            throw newsError;
         }
         
         // Получаем информацию об авторе
         let author = { username: 'Неизвестный автор' };
-        try {
-            const { data: authorData } = await _supabase
-                .from('profiles')
-                .select('username, avatar_url')
-                .eq('id', news.author_id)
-                .single();
-            
-            if (authorData) {
-                author = authorData;
+        if (news.author_id) {
+            try {
+                const { data: authorData, error: authorError } = await _supabase
+                    .from('profiles')
+                    .select('username, avatar_url')
+                    .eq('id', news.author_id)
+                    .single();
+                
+                if (!authorError && authorData) {
+                    author = authorData;
+                }
+            } catch (authorError) {
+                console.log('Ошибка загрузки автора:', authorError);
             }
-        } catch (authorError) {
-            console.log('Ошибка загрузки автора:', authorError);
         }
         
         // Получаем комментарии
         let comments = [];
         try {
-            const { data: commentsData } = await _supabase
+            const { data: commentsData, error: commentsError } = await _supabase
                 .from('news_comments')
                 .select('*')
                 .eq('news_id', newsId)
                 .order('created_at', { ascending: true });
             
-            if (commentsData) {
+            if (!commentsError && commentsData) {
                 comments = commentsData;
             }
         } catch (commentsError) {
@@ -536,24 +543,28 @@ async function openNewsDetails(newsId) {
         // Получаем информацию об авторах комментариев
         const commentsWithAuthors = [];
         for (const comment of comments) {
-            try {
-                const { data: commentAuthor } = await _supabase
-                    .from('profiles')
-                    .select('username, avatar_url')
-                    .eq('id', comment.author_id)
-                    .single();
-                
-                commentsWithAuthors.push({
-                    ...comment,
-                    author: commentAuthor || { username: 'Аноним' }
-                });
-            } catch (commentError) {
-                console.log('Ошибка загрузки автора комментария:', commentError);
-                commentsWithAuthors.push({
-                    ...comment,
-                    author: { username: 'Аноним' }
-                });
+            let commentAuthor = { username: 'Аноним' };
+            
+            if (comment.author_id) {
+                try {
+                    const { data: authorData } = await _supabase
+                        .from('profiles')
+                        .select('username, avatar_url')
+                        .eq('id', comment.author_id)
+                        .single();
+                    
+                    if (authorData) {
+                        commentAuthor = authorData;
+                    }
+                } catch (commentError) {
+                    console.log('Ошибка загрузки автора комментария:', commentError);
+                }
             }
+            
+            commentsWithAuthors.push({
+                ...comment,
+                author: commentAuthor
+            });
         }
         
         // Форматируем дату
@@ -628,6 +639,90 @@ async function openNewsDetails(newsId) {
                 </div>
             `;
         }
+        
+        // Заполняем модальное окно
+        const newsDetailsTitle = document.getElementById('newsDetailsTitle');
+        const newsDetailsAuthor = document.getElementById('newsDetailsAuthor');
+        const newsDetailsDate = document.getElementById('newsDetailsDate');
+        const newsDetailsContent = document.getElementById('newsDetailsContent');
+        
+        if (newsDetailsTitle) newsDetailsTitle.textContent = news.title;
+        if (newsDetailsAuthor) {
+            newsDetailsAuthor.innerHTML = `
+                <i class="fas fa-user"></i> ${escapeHtml(author.username)}
+            `;
+        }
+        if (newsDetailsDate) {
+            newsDetailsDate.innerHTML = `
+                <i class="fas fa-calendar"></i> ${newsDate}
+            `;
+        }
+        if (newsDetailsContent) {
+            newsDetailsContent.innerHTML = `
+                <div class="news-details-text">
+                    ${escapeHtml(news.content).replace(/\n/g, '<br>')}
+                </div>
+                ${imagesHTML}
+                ${commentsHTML}
+            `;
+        }
+        
+        // Показываем кнопку удаления для админов
+        const deleteBtnContainer = document.querySelector('.news-details-actions');
+        if (deleteBtnContainer && (currentUserRole === 'admin' || currentUserRole === 'owner')) {
+            deleteBtnContainer.style.display = 'block';
+        }
+        
+        // Показываем модальное окно
+        const newsDetailsModal = document.getElementById('newsDetailsModal');
+        if (newsDetailsModal) {
+            newsDetailsModal.style.display = 'flex';
+        }
+        
+        // Добавляем форму для комментариев если пользователь авторизован
+        if (currentUser) {
+            // Даем время для отрисовки контента
+            setTimeout(() => {
+                const commentsSection = document.getElementById('newsDetailsContent')?.querySelector('.news-comments-section');
+                const commentFormHTML = `
+                    <div class="add-comment-form">
+                        <h5><i class="fas fa-comment-medical"></i> Добавить комментарий</h5>
+                        <form id="addCommentForm" onsubmit="event.preventDefault(); addComment(event);">
+                            <textarea 
+                                id="commentContent" 
+                                placeholder="Напишите ваш комментарий..." 
+                                rows="3" 
+                                required
+                            ></textarea>
+                            <button type="submit" class="btn-yellow">
+                                <i class="fas fa-paper-plane"></i> Отправить
+                            </button>
+                        </form>
+                    </div>
+                `;
+                
+                if (commentsSection) {
+                    commentsSection.insertAdjacentHTML('beforeend', commentFormHTML);
+                } else {
+                    // Если нет комментариев, создаем секцию
+                    const commentsSectionNew = document.createElement('div');
+                    commentsSectionNew.className = 'news-comments-section';
+                    commentsSectionNew.innerHTML = `
+                        <h4><i class="fas fa-comments"></i> Комментарии</h4>
+                        ${commentFormHTML}
+                    `;
+                    if (newsDetailsContent) {
+                        newsDetailsContent.appendChild(commentsSectionNew);
+                    }
+                }
+            }, 100);
+        }
+        
+    } catch (error) {
+        console.error('Ошибка загрузки деталей новости:', error);
+        showNotification('Ошибка загрузки новости. Попробуйте еще раз.', 'error');
+    }
+}
         
         // Заполняем модальное окно
         document.getElementById('newsDetailsTitle').textContent = news.title;
