@@ -1200,6 +1200,7 @@ if (typeof window !== 'undefined') {
     window.loadNews = loadNews;
     window.openAddNewsModal = openAddNewsModal;
     window.openNewsDetails = openNewsDetails;
+    window.safeOpenNewsDetails = safeOpenNewsDetails; // Добавьте эту строку
     window.addComment = addComment;
     window.editComment = editComment;
     window.deleteComment = deleteComment;
@@ -1208,4 +1209,6 @@ if (typeof window !== 'undefined') {
     window.deleteNews = deleteNews;
     window.saveCommentEdit = saveCommentEdit;
     window.cancelCommentEdit = cancelCommentEdit;
+    window.escapeHtml = escapeHtml; // И эту тоже
+    window.showNotification = showNotification; // И эту
 }
