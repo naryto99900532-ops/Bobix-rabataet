@@ -205,7 +205,7 @@ function renderNewsList(news) {
     let html = '';
     
     news.forEach((newsItem, index) => {
-        const authorName = newsItem.author?.username || 'Неизвестный автор';
+        const authorName = newsItem.author?.username || 'Автор новости';
         const newsDate = new Date(newsItem.created_at).toLocaleDateString('ru-RU', {
             day: 'numeric',
             month: 'long',
@@ -216,11 +216,12 @@ function renderNewsList(news) {
         
         // Обрезаем текст для превью
         const previewText = newsItem.content.length > 150 
-            ? newsItem.content.substring(0, 150) + '...' 
-            : newsItem.content;
+            ? escapeHtml(newsItem.content.substring(0, 150)) + '...' 
+            : escapeHtml(newsItem.content);
         
+        // Безопасный вызов openNewsDetails - всегда доступен
         html += `
-            <div class="news-card" onclick="openNewsDetails('${newsItem.id}')">
+            <div class="news-card" onclick="safeOpenNewsDetails('${newsItem.id}')">
                 <div class="news-header">
                     <h3 class="news-title">${escapeHtml(newsItem.title)}</h3>
                     <div class="news-meta">
@@ -229,7 +230,7 @@ function renderNewsList(news) {
                     </div>
                 </div>
                 <div class="news-content-preview">
-                    ${escapeHtml(previewText)}
+                    ${previewText}
                 </div>
                 ${newsItem.image_urls && newsItem.image_urls.length > 0 ? `
                     <div class="news-images-preview">
@@ -240,7 +241,7 @@ function renderNewsList(news) {
                     <span class="news-comments-count">
                         <i class="fas fa-comment"></i> ${newsItem.comments_count || 0} комментариев
                     </span>
-                    <button class="news-read-more" onclick="event.stopPropagation(); openNewsDetails('${newsItem.id}')">
+                    <button class="news-read-more" onclick="event.stopPropagation(); safeOpenNewsDetails('${newsItem.id}')">
                         Читать далее <i class="fas fa-arrow-right"></i>
                     </button>
                 </div>
