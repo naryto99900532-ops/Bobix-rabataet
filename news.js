@@ -68,7 +68,123 @@ function setupNewsEventHandlers() {
         }
     });
 }
-
+/**
+ * Открытие деталей новости
+ * @param {string} newsId - ID новости
+ */
+async function openNewsDetails(newsId) {
+    try {
+        currentNewsId = newsId;
+        
+        // Получаем данные новости
+        const { data: news, error } = await _supabase
+            .from('news')
+            .select('*')
+            .eq('id', newsId)
+            .single();
+        
+        if (error) {
+            throw error;
+        }
+        
+        // Получаем информацию об авторе
+        const { data: author } = await _supabase
+            .from('profiles')
+            .select('username, avatar_url')
+            .eq('id', news.author_id)
+            .single()
+            .catch(() => ({ data: { username: 'Неизвестный автор' } }));
+        
+        // Получаем комментарии с информацией об авторах
+        const { data: comments } = await _supabase
+            .from('news_comments')
+            .select('*')
+            .eq('news_id', newsId)
+            .order('created_at', { ascending: true });
+        
+        // Получаем информацию об авторах комментариев
+        const commentsWithAuthors = await Promise.all((comments || []).map(async (comment) => {
+            const { data: commentAuthor } = await _supabase
+                .from('profiles')
+                .select('username, avatar_url')
+                .eq('id', comment.author_id)
+                .single()
+                .catch(() => ({ data: { username: 'Аноним' } }));
+            
+            return {
+                ...comment,
+                author: commentAuthor || { username: 'Аноним' }
+            };
+        }));
+        
+        // Теперь используем данные
+        const newsDate = new Date(news.created_at).toLocaleDateString('ru-RU', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        
+        // Остальная часть функции остается без изменений.../**
+ * Открытие деталей новости
+ * @param {string} newsId - ID новости
+ */
+async function openNewsDetails(newsId) {
+    try {
+        currentNewsId = newsId;
+        
+        // Получаем данные новости
+        const { data: news, error } = await _supabase
+            .from('news')
+            .select('*')
+            .eq('id', newsId)
+            .single();
+        
+        if (error) {
+            throw error;
+        }
+        
+        // Получаем информацию об авторе
+        const { data: author } = await _supabase
+            .from('profiles')
+            .select('username, avatar_url')
+            .eq('id', news.author_id)
+            .single()
+            .catch(() => ({ data: { username: 'Неизвестный автор' } }));
+        
+        // Получаем комментарии с информацией об авторах
+        const { data: comments } = await _supabase
+            .from('news_comments')
+            .select('*')
+            .eq('news_id', newsId)
+            .order('created_at', { ascending: true });
+        
+        // Получаем информацию об авторах комментариев
+        const commentsWithAuthors = await Promise.all((comments || []).map(async (comment) => {
+            const { data: commentAuthor } = await _supabase
+                .from('profiles')
+                .select('username, avatar_url')
+                .eq('id', comment.author_id)
+                .single()
+                .catch(() => ({ data: { username: 'Аноним' } }));
+            
+            return {
+                ...comment,
+                author: commentAuthor || { username: 'Аноним' }
+            };
+        }));
+        
+        // Теперь используем данные
+        const newsDate = new Date(news.created_at).toLocaleDateString('ru-RU', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        
+        // Остальная часть функции остается без изменений...
 /**
  * Загрузка всех новостей
  */
