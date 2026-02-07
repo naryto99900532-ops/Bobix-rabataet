@@ -436,6 +436,12 @@ async function logout() {
         // Очищаем все данные аутентификации
         await _supabase.auth.signOut();
         
+        // Очищаем переменные связанные с пользователем
+        if (typeof window !== 'undefined') {
+            window.currentUser = null;
+            window.currentUserRole = 'user';
+        }
+        
         // Очищаем localStorage
         localStorage.removeItem('supabase.auth.token');
         localStorage.removeItem('sb-tstyjtgcisdelkkltyjo-auth-token');
