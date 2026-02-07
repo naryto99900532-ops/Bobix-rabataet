@@ -8,6 +8,18 @@ let newsData = [];
 let currentNewsId = null;
 let selectedImages = [];
 
+
+/**
+ * Экранирование HTML для безопасности
+ * @param {string} text - Текст для экранирования
+ * @returns {string} - Экранированный текст
+ */
+function escapeHtml(text) {
+    if (typeof text !== 'string') return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
 /**
  * Инициализация модуля новостей
  */
