@@ -165,7 +165,34 @@ async function createUserProfile() {
         console.error('Критическая ошибка создания профиля:', error);
     }
 }
+/**
+ * Обновление статистики Clan Players
+ * Эта функция вызывается из admin-functions.js
+ */
+function updatePlayerStats() {
+    if (!playersData || !Array.isArray(playersData)) return;
+    
+    const totalPlayers = playersData.length;
+    const activePlayers = playersData.filter(p => p.score > 0).length;
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    const newPlayers = playersData.filter(p => {
+        if (!p.created_at) return false;
+        return new Date(p.created_at) > oneWeekAgo;
+    }).length;
+    
+    // Обновляем элементы на странице если они существуют
+    const totalPlayersElement = document.getElementById('totalPlayersCount');
+    const activePlayersElement = document.getElementById('activePlayersCount');
+    const newPlayersElement = document.getElementById('newPlayersWeek');
+    
+    if (totalPlayersElement) totalPlayersElement.textContent = totalPlayers;
+    if (activePlayersElement) activePlayersElement.textContent = activePlayers;
+    if (newPlayersElement) newPlayersElement.textContent = newPlayers;
+}
 
+// Экспортируем функцию для использования в admin-functions.js
+window.updatePlayerStats = updatePlayerStats;
 /**
  * Настройка навигации по разделам
  */
