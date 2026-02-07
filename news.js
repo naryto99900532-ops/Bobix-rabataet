@@ -68,123 +68,7 @@ function setupNewsEventHandlers() {
         }
     });
 }
-/**
- * Открытие деталей новости
- * @param {string} newsId - ID новости
- */
-async function openNewsDetails(newsId) {
-    try {
-        currentNewsId = newsId;
-        
-        // Получаем данные новости
-        const { data: news, error } = await _supabase
-            .from('news')
-            .select('*')
-            .eq('id', newsId)
-            .single();
-        
-        if (error) {
-            throw error;
-        }
-        
-        // Получаем информацию об авторе
-        const { data: author } = await _supabase
-            .from('profiles')
-            .select('username, avatar_url')
-            .eq('id', news.author_id)
-            .single()
-            .catch(() => ({ data: { username: 'Неизвестный автор' } }));
-        
-        // Получаем комментарии с информацией об авторах
-        const { data: comments } = await _supabase
-            .from('news_comments')
-            .select('*')
-            .eq('news_id', newsId)
-            .order('created_at', { ascending: true });
-        
-        // Получаем информацию об авторах комментариев
-        const commentsWithAuthors = await Promise.all((comments || []).map(async (comment) => {
-            const { data: commentAuthor } = await _supabase
-                .from('profiles')
-                .select('username, avatar_url')
-                .eq('id', comment.author_id)
-                .single()
-                .catch(() => ({ data: { username: 'Аноним' } }));
-            
-            return {
-                ...comment,
-                author: commentAuthor || { username: 'Аноним' }
-            };
-        }));
-        
-        // Теперь используем данные
-        const newsDate = new Date(news.created_at).toLocaleDateString('ru-RU', {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-        
-        // Остальная часть функции остается без изменений.../**
- * Открытие деталей новости
- * @param {string} newsId - ID новости
- */
-async function openNewsDetails(newsId) {
-    try {
-        currentNewsId = newsId;
-        
-        // Получаем данные новости
-        const { data: news, error } = await _supabase
-            .from('news')
-            .select('*')
-            .eq('id', newsId)
-            .single();
-        
-        if (error) {
-            throw error;
-        }
-        
-        // Получаем информацию об авторе
-        const { data: author } = await _supabase
-            .from('profiles')
-            .select('username, avatar_url')
-            .eq('id', news.author_id)
-            .single()
-            .catch(() => ({ data: { username: 'Неизвестный автор' } }));
-        
-        // Получаем комментарии с информацией об авторах
-        const { data: comments } = await _supabase
-            .from('news_comments')
-            .select('*')
-            .eq('news_id', newsId)
-            .order('created_at', { ascending: true });
-        
-        // Получаем информацию об авторах комментариев
-        const commentsWithAuthors = await Promise.all((comments || []).map(async (comment) => {
-            const { data: commentAuthor } = await _supabase
-                .from('profiles')
-                .select('username, avatar_url')
-                .eq('id', comment.author_id)
-                .single()
-                .catch(() => ({ data: { username: 'Аноним' } }));
-            
-            return {
-                ...comment,
-                author: commentAuthor || { username: 'Аноним' }
-            };
-        }));
-        
-        // Теперь используем данные
-        const newsDate = new Date(news.created_at).toLocaleDateString('ru-RU', {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-        
-        // Остальная часть функции остается без изменений...
+
 /**
  * Загрузка всех новостей
  */
@@ -221,7 +105,7 @@ async function loadNews() {
                 .select('username, avatar_url')
                 .eq('id', authorId)
                 .single()
-                .catch(() => ({ data: null }));
+                .catch(() => null);
             
             return { [authorId]: profile };
         });
@@ -520,23 +404,46 @@ async function openNewsDetails(newsId) {
     try {
         currentNewsId = newsId;
         
-        // Получаем данные новости с информацией об авторе
+        // Получаем данные новости
         const { data: news, error } = await _supabase
             .from('news')
-            .select(`
-                *,
-                author:profiles(username, avatar_url),
-                comments:news_comments(
-                    *,
-                    author:profiles(username, avatar_url)
-                )
-            `)
+            .select('*')
             .eq('id', newsId)
             .single();
         
         if (error) {
             throw error;
         }
+        
+        // Получаем информацию об авторе
+        const { data: author } = await _supabase
+            .from('profiles')
+            .select('username, avatar_url')
+            .eq('id', news.author_id)
+            .single()
+            .catch(() => ({ username: 'Неизвестный автор' }));
+        
+        // Получаем комментарии
+        const { data: comments } = await _supabase
+            .from('news_comments')
+            .select('*')
+            .eq('news_id', newsId)
+            .order('created_at', { ascending: true });
+        
+        // Получаем информацию об авторах комментариев
+        const commentsWithAuthors = await Promise.all((comments || []).map(async (comment) => {
+            const { data: commentAuthor } = await _supabase
+                .from('profiles')
+                .select('username, avatar_url')
+                .eq('id', comment.author_id)
+                .single()
+                .catch(() => ({ username: 'Аноним' }));
+            
+            return {
+                ...comment,
+                author: commentAuthor || { username: 'Аноним' }
+            };
+        }));
         
         // Форматируем дату
         const newsDate = new Date(news.created_at).toLocaleDateString('ru-RU', {
@@ -566,12 +473,12 @@ async function openNewsDetails(newsId) {
         
         // Генерируем HTML для комментариев
         let commentsHTML = '';
-        if (news.comments && news.comments.length > 0) {
+        if (commentsWithAuthors && commentsWithAuthors.length > 0) {
             commentsHTML = `
                 <div class="news-comments-section">
-                    <h4><i class="fas fa-comments"></i> Комментарии (${news.comments.length})</h4>
+                    <h4><i class="fas fa-comments"></i> Комментарии (${commentsWithAuthors.length})</h4>
                     <div class="comments-list">
-                        ${news.comments.map(comment => {
+                        ${commentsWithAuthors.map(comment => {
                             const commentDate = new Date(comment.created_at).toLocaleDateString('ru-RU', {
                                 day: 'numeric',
                                 month: 'short',
@@ -614,7 +521,7 @@ async function openNewsDetails(newsId) {
         // Заполняем модальное окно
         document.getElementById('newsDetailsTitle').textContent = news.title;
         document.getElementById('newsDetailsAuthor').innerHTML = `
-            <i class="fas fa-user"></i> ${escapeHtml(news.author?.username || 'Неизвестный автор')}
+            <i class="fas fa-user"></i> ${escapeHtml(author?.username || 'Неизвестный автор')}
         `;
         document.getElementById('newsDetailsDate').innerHTML = `
             <i class="fas fa-calendar"></i> ${newsDate}
@@ -626,6 +533,12 @@ async function openNewsDetails(newsId) {
             ${imagesHTML}
             ${commentsHTML}
         `;
+        
+        // Показываем кнопку удаления для админов
+        const deleteBtnContainer = document.querySelector('.news-details-actions');
+        if (deleteBtnContainer && (currentUserRole === 'admin' || currentUserRole === 'owner')) {
+            deleteBtnContainer.style.display = 'block';
+        }
         
         // Показываем модальное окно
         document.getElementById('newsDetailsModal').style.display = 'flex';
