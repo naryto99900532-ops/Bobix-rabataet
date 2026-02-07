@@ -99,40 +99,52 @@ async function loadNews() {
         
         // Получаем информацию об авторах отдельно
         const authorIds = [...new Set(news.map(item => item.author_id))];
-        const authorPromises = authorIds.map(async (authorId) => {
-            const { data: profile } = await _supabase
-                .from('profiles')
-                .select('username, avatar_url')
-                .eq('id', authorId)
-                .single()
-                .catch(() => null);
-            
-            return { [authorId]: profile };
-        });
+        const authorMap = {};
         
-        const authorResults = await Promise.all(authorPromises);
-        const authorMap = Object.assign({}, ...authorResults);
+        for (const authorId of authorIds) {
+            try {
+                const { data: profile } = await _supabase
+                    .from('profiles')
+                    .select('username, avatar_url')
+                    .eq('id', authorId)
+                    .single();
+                
+                authorMap[authorId] = profile;
+            } catch (profileError) {
+                console.log(`Профиль не найден для пользователя ${authorId}:`, profileError);
+                authorMap[authorId] = { username: 'Неизвестный автор' };
+            }
+        }
         
         // Получаем количество комментариев для каждой новости
-        const newsWithDetails = await Promise.all(news.map(async (newsItem) => {
-            // Получаем количество комментариев
-            const { count: commentsCount } = await _supabase
-                .from('news_comments')
-                .select('*', { count: 'exact', head: true })
-                .eq('news_id', newsItem.id)
-                .catch(() => ({ count: 0 }));
-            
-            // Получаем автора
-            const author = authorMap[newsItem.author_id] || { username: 'Неизвестный автор' };
-            
-            return {
-                ...newsItem,
-                author: author,
-                comments_count: commentsCount || 0
-            };
-        }));
+        const newsWithDetails = [];
+        for (const newsItem of news) {
+            try {
+                // Получаем количество комментариев
+                const { count: commentsCount } = await _supabase
+                    .from('news_comments')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('news_id', newsItem.id);
+                
+                // Получаем автора
+                const author = authorMap[newsItem.author_id] || { username: 'Неизвестный автор' };
+                
+                newsWithDetails.push({
+                    ...newsItem,
+                    author: author,
+                    comments_count: commentsCount || 0
+                });
+            } catch (itemError) {
+                console.log(`Ошибка обработки новости ${newsItem.id}:`, itemError);
+                newsWithDetails.push({
+                    ...newsItem,
+                    author: { username: 'Неизвестный автор' },
+                    comments_count: 0
+                });
+            }
+        }
         
-        newsData = newsWithDetails || [];
+        newsData = newsWithDetails;
         
         // Отображаем новости
         renderNewsList(newsData);
@@ -470,7 +482,217 @@ async function openNewsDetails(newsId) {
                 </div>
             `;
         }
+        /**
+ * Открытие деталей новости
+ * @param {string} newsId - ID новости
+ */
+async function openNewsDetails(newsId) {
+    try {
+        currentNewsId = newsId;
         
+        // Получаем данные новости
+        const { data: news, error } = await _supabase
+            .from('news')
+            .select('*')
+            .eq('id', newsId)
+            .single();
+        
+        if (error) {
+            throw error;
+        }
+        
+        // Получаем информацию об авторе
+        let author = { username: 'Неизвестный автор' };
+        try {
+            const { data: authorData } = await _supabase
+                .from('profiles')
+                .select('username, avatar_url')
+                .eq('id', news.author_id)
+                .single();
+            
+            if (authorData) {
+                author = authorData;
+            }
+        } catch (authorError) {
+            console.log('Ошибка загрузки автора:', authorError);
+        }
+        
+        // Получаем комментарии
+        let comments = [];
+        try {
+            const { data: commentsData } = await _supabase
+                .from('news_comments')
+                .select('*')
+                .eq('news_id', newsId)
+                .order('created_at', { ascending: true });
+            
+            if (commentsData) {
+                comments = commentsData;
+            }
+        } catch (commentsError) {
+            console.log('Ошибка загрузки комментариев:', commentsError);
+        }
+        
+        // Получаем информацию об авторах комментариев
+        const commentsWithAuthors = [];
+        for (const comment of comments) {
+            try {
+                const { data: commentAuthor } = await _supabase
+                    .from('profiles')
+                    .select('username, avatar_url')
+                    .eq('id', comment.author_id)
+                    .single();
+                
+                commentsWithAuthors.push({
+                    ...comment,
+                    author: commentAuthor || { username: 'Аноним' }
+                });
+            } catch (commentError) {
+                console.log('Ошибка загрузки автора комментария:', commentError);
+                commentsWithAuthors.push({
+                    ...comment,
+                    author: { username: 'Аноним' }
+                });
+            }
+        }
+        
+        // Форматируем дату
+        const newsDate = new Date(news.created_at).toLocaleDateString('ru-RU', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        
+        // Генерируем HTML для изображений
+        let imagesHTML = '';
+        if (news.image_urls && news.image_urls.length > 0) {
+            imagesHTML = `
+                <div class="news-details-images">
+                    <h4><i class="fas fa-images"></i> Прикрепленные изображения</h4>
+                    <div class="news-images-grid">
+                        ${news.image_urls.map(url => `
+                            <div class="news-image-item">
+                                <img src="${url}" alt="Изображение новости" onclick="openImageModal('${url}')">
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Генерируем HTML для комментариев
+        let commentsHTML = '';
+        if (commentsWithAuthors && commentsWithAuthors.length > 0) {
+            commentsHTML = `
+                <div class="news-comments-section">
+                    <h4><i class="fas fa-comments"></i> Комментарии (${commentsWithAuthors.length})</h4>
+                    <div class="comments-list">
+                        ${commentsWithAuthors.map(comment => {
+                            const commentDate = new Date(comment.created_at).toLocaleDateString('ru-RU', {
+                                day: 'numeric',
+                                month: 'short',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            });
+                            const isCommentAuthor = comment.author_id === currentUser?.id;
+                            const canDelete = isCommentAuthor || currentUserRole === 'admin' || currentUserRole === 'owner';
+                            
+                            return `
+                                <div class="comment-item" id="comment-${comment.id}">
+                                    <div class="comment-header">
+                                        <div class="comment-author">
+                                            <i class="fas fa-user"></i>
+                                            <span>${escapeHtml(comment.author?.username || 'Аноним')}</span>
+                                        </div>
+                                        <div class="comment-date">${commentDate}</div>
+                                    </div>
+                                    <div class="comment-content">${escapeHtml(comment.content)}</div>
+                                    <div class="comment-actions">
+                                        ${isCommentAuthor ? `
+                                            <button class="comment-btn edit" onclick="editComment('${comment.id}')">
+                                                <i class="fas fa-edit"></i> Редактировать
+                                            </button>
+                                        ` : ''}
+                                        ${canDelete ? `
+                                            <button class="comment-btn delete" onclick="deleteComment('${comment.id}')">
+                                                <i class="fas fa-trash"></i> Удалить
+                                            </button>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Заполняем модальное окно
+        document.getElementById('newsDetailsTitle').textContent = news.title;
+        document.getElementById('newsDetailsAuthor').innerHTML = `
+            <i class="fas fa-user"></i> ${escapeHtml(author?.username || 'Неизвестный автор')}
+        `;
+        document.getElementById('newsDetailsDate').innerHTML = `
+            <i class="fas fa-calendar"></i> ${newsDate}
+        `;
+        document.getElementById('newsDetailsContent').innerHTML = `
+            <div class="news-details-text">
+                ${news.content.replace(/\n/g, '<br>')}
+            </div>
+            ${imagesHTML}
+            ${commentsHTML}
+        `;
+        
+        // Показываем кнопку удаления для админов
+        const deleteBtnContainer = document.querySelector('.news-details-actions');
+        if (deleteBtnContainer && (currentUserRole === 'admin' || currentUserRole === 'owner')) {
+            deleteBtnContainer.style.display = 'block';
+        }
+        
+        // Показываем модальное окно
+        document.getElementById('newsDetailsModal').style.display = 'flex';
+        
+        // Добавляем форму для комментариев если пользователь авторизован
+        if (currentUser) {
+            const commentsSection = document.getElementById('newsDetailsContent').querySelector('.news-comments-section');
+            const commentFormHTML = `
+                <div class="add-comment-form">
+                    <h5><i class="fas fa-comment-medical"></i> Добавить комментарий</h5>
+                    <form id="addCommentForm" onsubmit="addComment(event)">
+                        <textarea 
+                            id="commentContent" 
+                            placeholder="Напишите ваш комментарий..." 
+                            rows="3" 
+                            required
+                        ></textarea>
+                        <button type="submit" class="btn-yellow">
+                            <i class="fas fa-paper-plane"></i> Отправить
+                        </button>
+                    </form>
+                </div>
+            `;
+            
+            if (commentsSection) {
+                commentsSection.insertAdjacentHTML('beforeend', commentFormHTML);
+            } else {
+                // Если нет комментариев, создаем секцию
+                const commentsSectionNew = document.createElement('div');
+                commentsSectionNew.className = 'news-comments-section';
+                commentsSectionNew.innerHTML = `
+                    <h4><i class="fas fa-comments"></i> Комментарии</h4>
+                    ${commentFormHTML}
+                `;
+                document.getElementById('newsDetailsContent').appendChild(commentsSectionNew);
+            }
+        }
+        
+    } catch (error) {
+        console.error('Ошибка загрузки деталей новости:', error);
+        showNotification('Ошибка загрузки новости', 'error');
+    }
+}
         // Генерируем HTML для комментариев
         let commentsHTML = '';
         if (commentsWithAuthors && commentsWithAuthors.length > 0) {
