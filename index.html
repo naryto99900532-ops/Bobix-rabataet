@@ -302,5 +302,17 @@ function showNotification(message, type = 'info') {
             initializeNewsModule();
         });
     </script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Инициализация новостей для главной страницы
+        if (typeof initializeNewsModule === 'function') {
+            initializeNewsModule();
+        } else {
+            console.log('Модуль новостей не загружен');
+        }
+        
+        // Остальной код для главной страницы...
+    });
+</script>
 </body>
 </html>
