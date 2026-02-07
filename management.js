@@ -300,11 +300,31 @@ async function loadSectionData(sectionId) {
         case 'top-clan':
             await loadTopPlayers();
             break;
+        case 'news':
+            if (typeof loadNews === 'function') {
+                await loadNews();
+            } else {
+                console.error('Функция loadNews не определена');
+                // Показываем сообщение об ошибке
+                const newsList = document.getElementById('newsList');
+                if (newsList) {
+                    newsList.innerHTML = `
+                        <div class="error-message">
+                            <p>Модуль новостей не загружен. Обновите страницу.</p>
+                            <button class="admin-btn" onclick="location.reload()">Обновить</button>
+                        </div>
+                    `;
+                }
+            }
+            break;
         case 'admin-panel':
-            await loadAdminStats();
+            await loadAdminPanelData();
             break;
         case 'owner-panel':
-            await loadAllUsers();
+            await loadOwnerPanelData();
+            break;
+        case 'administrators':
+            await loadAdministrators();
             break;
     }
 }
