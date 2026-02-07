@@ -669,4 +669,7 @@ if (typeof window !== 'undefined') {
     window.closeEditAdminModal = closeEditAdminModal;
     window.openPlayerDetails = openPlayerDetails;
     window.closePlayerDetailsModal = closePlayerDetailsModal;
+    
+    // Добавьте эту строку
+    window.updatePlayerStats = updatePlayerStats;
 }
