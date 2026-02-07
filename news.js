@@ -1173,6 +1173,7 @@ async function deleteNews(newsId) {
 /**
  * Экспорт функций для глобального использования
  */
+
 if (typeof window !== 'undefined') {
     window.initializeNewsModule = initializeNewsModule;
     window.loadNews = loadNews;
@@ -1184,4 +1185,6 @@ if (typeof window !== 'undefined') {
     window.openImageModal = openImageModal;
     window.closeImageModal = closeImageModal;
     window.deleteNews = deleteNews;
-}
+    window.saveCommentEdit = saveCommentEdit;
+    window.cancelCommentEdit = cancelCommentEdit;
+} // <-- Убедитесь что здесь только одна закрывающая фигурная скобка
