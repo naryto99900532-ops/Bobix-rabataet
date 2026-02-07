@@ -195,6 +195,89 @@
                     closeAuthModal();
                 }
             });
+
+
+            /**
+ * Отображение списка новостей
+ * @param {Array} news - Массив новостей
+ */
+function renderNewsList(news) {
+    const newsList = document.getElementById('newsList') || document.getElementById('newsListIndex');
+    if (!newsList) return;
+    
+    if (!news || news.length === 0) {
+        newsList.innerHTML = `
+            <div class="threshold-card">
+                <h3><i class="fas fa-newspaper"></i> Новостей пока нет</h3>
+                <p>Будьте первым, кто опубликует новость!</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '';
+    
+    news.forEach((newsItem, index) => {
+        const authorName = newsItem.author?.username || 'Автор новости';
+        const newsDate = new Date(newsItem.created_at).toLocaleDateString('ru-RU', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        
+        // Обрезаем текст для превью
+        const previewText = newsItem.content.length > 150 
+            ? escapeHtml(newsItem.content.substring(0, 150)) + '...' 
+            : escapeHtml(newsItem.content);
+        
+        html += `
+            <div class="news-card" onclick="if (typeof openNewsDetails === 'function') openNewsDetails('${newsItem.id}')">
+                <div class="news-header">
+                    <h3 class="news-title">${escapeHtml(newsItem.title)}</h3>
+                    <div class="news-meta">
+                        <span class="news-author"><i class="fas fa-user"></i> ${escapeHtml(authorName)}</span>
+                        <span class="news-date"><i class="fas fa-calendar"></i> ${newsDate}</span>
+                    </div>
+                </div>
+                <div class="news-content-preview">
+                    ${previewText}
+                </div>
+                ${newsItem.image_urls && newsItem.image_urls.length > 0 ? `
+                    <div class="news-images-preview">
+                        <i class="fas fa-image"></i> ${newsItem.image_urls.length} изображений
+                    </div>
+                ` : ''}
+                <div class="news-footer">
+                    <span class="news-comments-count">
+                        <i class="fas fa-comment"></i> ${newsItem.comments_count || 0} комментариев
+                    </span>
+                    <button class="news-read-more" onclick="event.stopPropagation(); if (typeof openNewsDetails === 'function') openNewsDetails('${newsItem.id}')">
+                        Читать далее <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+    
+    newsList.innerHTML = html;
+}
+            /**
+ * Показать уведомление (базовая версия для index.html)
+ * @param {string} message - Текст сообщения
+ * @param {string} type - Тип сообщения
+ */
+function showNotification(message, type = 'info') {
+    // Простой alert для index.html
+    alert(message);
+    
+    // Или создаем уведомление если нужна красивая версия
+    if (typeof window.showNotification === 'function') {
+        // Используем существующую функцию из других файлов
+        window.showNotification(message, type);
+    }
+}
             
             // Проверка текущей сессии пользователя
             async function checkCurrentSession() {
