@@ -129,7 +129,7 @@
                         <button class="admin-btn primary" id="addNewsBtn">
                             <i class="fas fa-plus"></i> Опубликовать новость
                         </button>
-                        <button class="admin-btn" onclick="loadNews()">
+                        <button class="admin-btn" onclick="if (typeof loadNews === 'function') loadNews(); else location.reload();">
                             <i class="fas fa-sync-alt"></i> Обновить
                         </button>
                     </div>
