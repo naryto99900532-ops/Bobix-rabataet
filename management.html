@@ -604,5 +604,18 @@
             initializeEnhancedPlayerManagement();
         });
     </script>
+    <script>
+    // Инициализация при загрузке страницы
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeManagementPage();
+        
+        // Инициализация новостей если функция существует
+        if (typeof initializeNewsModule === 'function') {
+            initializeNewsModule();
+        } else {
+            console.error('Функция initializeNewsModule не найдена');
+        }
+    });
+</script>
 </body>
 </html>
