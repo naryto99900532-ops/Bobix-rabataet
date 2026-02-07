@@ -10,6 +10,69 @@ let playersData = [];
 let usersData = [];
 
 /**
+ * Обновление рендера Clan Players для отображения деталей
+ * Эта функция вызывается из admin-functions.js
+ */
+function updatePlayersRender() {
+    const playersList = document.getElementById('playersList');
+    if (!playersList || !playersData || !Array.isArray(playersData)) return;
+    
+    let html = '';
+    
+    playersData.forEach((player, index) => {
+        const isAdmin = currentUserRole === 'admin' || currentUserRole === 'owner';
+        const editButton = isAdmin ? `
+            <button class="admin-btn" onclick="openEnhancedEditPlayerModal('${player.id}')" style="margin-top: 10px;">
+                <i class="fas fa-edit"></i> Редактировать
+            </button>
+        ` : '';
+        
+        html += `
+            <div class="player-management-card player-card-with-details" data-player-id="${player.id}">
+                <div class="player-rank">#${index + 1}</div>
+                <div class="player-info">
+                    <div class="player-avatar" onclick="openPlayerDetails('${player.id}')" style="cursor: pointer;">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div>
+                        <h3 class="player-name" style="cursor: pointer;" onclick="openPlayerDetails('${player.id}')">
+                            ${escapeHtml(player.nickname || 'Без имени')}
+                        </h3>
+                        <p>Счет: <strong>${player.score || 0}</strong></p>
+                    </div>
+                </div>
+                <div class="player-description">
+                    ${escapeHtml(player.description || 'Описание отсутствует')}
+                </div>
+                
+                <div class="player-details-hover">
+                    <div class="detail-row">
+                        <span class="detail-label">Roblox:</span>
+                        <span class="detail-value roblox">${escapeHtml(player.roblox_username || 'Не указан')}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Discord:</span>
+                        <span class="detail-value discord">${escapeHtml(player.discord || 'Не указан')}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Добавлен:</span>
+                        <span class="detail-value">${new Date(player.created_at).toLocaleDateString('ru-RU')}</span>
+                    </div>
+                </div>
+                
+                ${editButton}
+            </div>
+        `;
+    });
+    
+    playersList.innerHTML = html;
+    
+    // Обновляем статистику если функция существует
+    if (typeof updatePlayerStats === 'function') {
+        updatePlayerStats();
+    }
+}
+/**
  * Инициализация страницы управления
  */
 async function initializeManagementPage() {
