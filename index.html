@@ -20,6 +20,7 @@
                 <ul>
                     <li><a href="#home" class="active"><i class="fas fa-home"></i> Главная</a></li>
                     <li><a href="#thresholds"><i class="fas fa-layer-group"></i> Пороги</a></li>
+                    <li><a href="#news"><i class="fas fa-newspaper"></i> Новости</a></li>
                     <li><a href="#top"><i class="fas fa-trophy"></i> Топ игроков</a></li>
                     <li><a href="#about"><i class="fas fa-info-circle"></i> О нас</a></li>
                     <li><button id="loginBtn" class="nav-login-btn"><i class="fas fa-sign-in-alt"></i> Log In</button></li>
@@ -62,6 +63,17 @@
                     <div class="threshold-number">4</div>
                     <h3>Порог Скорости</h3>
                     <p>Управление темпом игры и быстрое использование комбо.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- НОВЫЙ РАЗДЕЛ: НОВОСТИ -->
+        <section class="news-section fade-in" id="news">
+            <h2 class="section-title">ПОСЛЕДНИЕ НОВОСТИ</h2>
+            <div class="news-container" id="newsListIndex">
+                <div class="loading">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Загрузка новостей...</p>
                 </div>
             </div>
         </section>
@@ -124,9 +136,27 @@
         </div>
     </div>
 
+    <!-- Модальное окно деталей новости (для главной страницы) -->
+    <div id="newsDetailsModal" class="modal">
+        <div class="modal-content news-modal-content">
+            <span class="close-modal close-news-details">&times;</span>
+            <div class="news-details-header">
+                <h2 id="newsDetailsTitle">Заголовок новости</h2>
+                <div class="news-details-meta">
+                    <span id="newsDetailsAuthor"><i class="fas fa-user"></i> Автор</span>
+                    <span id="newsDetailsDate"><i class="fas fa-calendar"></i> Дата</span>
+                </div>
+            </div>
+            <div class="news-details-body" id="newsDetailsContent">
+                <!-- Содержимое новости будет загружено динамически -->
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="db.js"></script>
     <script src="auth.js"></script>
+    <script src="news.js"></script>
     <script>
         // Инициализация событий для кнопок входа
         document.addEventListener('DOMContentLoaded', function() {
@@ -184,6 +214,9 @@
             }
             
             checkCurrentSession();
+            
+            // Инициализация модуля новостей
+            initializeNewsModule();
         });
     </script>
 </body>
