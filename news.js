@@ -102,17 +102,23 @@ async function loadNews() {
         const authorMap = {};
         
         for (const authorId of authorIds) {
-            try {
-                const { data: profile } = await _supabase
-                    .from('profiles')
-                    .select('username, avatar_url')
-                    .eq('id', authorId)
-                    .single();
-                
-                authorMap[authorId] = profile;
-            } catch (profileError) {
-                console.log(`Профиль не найден для пользователя ${authorId}:`, profileError);
-                authorMap[authorId] = { username: 'Неизвестный автор' };
+            if (authorId) {
+                try {
+                    const { data: profile, error: profileError } = await _supabase
+                        .from('profiles')
+                        .select('username, avatar_url')
+                        .eq('id', authorId)
+                        .single();
+                    
+                    if (!profileError && profile) {
+                        authorMap[authorId] = profile;
+                    } else {
+                        authorMap[authorId] = { username: 'Неизвестный автор' };
+                    }
+                } catch (profileError) {
+                    console.log(`Профиль не найден для пользователя ${authorId}:`, profileError);
+                    authorMap[authorId] = { username: 'Неизвестный автор' };
+                }
             }
         }
         
@@ -156,13 +162,13 @@ async function loadNews() {
             newsList.innerHTML = `
                 <div class="error-message">
                     <p>Ошибка загрузки новостей: ${error.message}</p>
+                    <p>Проверьте настройки таблицы news в Supabase.</p>
                     <button class="admin-btn" onclick="loadNews()">Повторить попытку</button>
                 </div>
             `;
         }
     }
 }
-
 /**
  * Отображение списка новостей
  * @param {Array} news - Массив новостей
