@@ -952,7 +952,20 @@ async function deleteNews(newsId) {
         showNotification(`Ошибка удаления новости: ${error.message}`, 'error');
     }
 }
-
+/**
+ * Безопасное открытие деталей новости (работает без авторизации)
+ * @param {string} newsId - ID новости
+ */
+function safeOpenNewsDetails(newsId) {
+    if (typeof openNewsDetails === 'function') {
+        openNewsDetails(newsId);
+    } else {
+        // Альтернатива: показать базовую информацию
+        alert('Для просмотра деталей новости необходимо войти в систему');
+        // Или перенаправить на страницу входа
+        // window.location.href = 'index.html';
+    }
+}
 /**
  * Экспорт функций для глобального использования
  */
