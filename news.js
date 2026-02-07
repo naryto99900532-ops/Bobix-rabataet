@@ -537,24 +537,41 @@ async function uploadNewsImages(images) {
     
     for (let i = 0; i < images.length; i++) {
         const file = images[i];
+        
+        // Проверяем размер файла (макс 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            console.error(`Файл ${file.name} слишком большой (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
+            continue;
+        }
+        
         const fileExt = file.name.split('.').pop();
-        const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
+        const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
         const filePath = `${fileName}`;
         
+        console.log(`Загрузка изображения: ${fileName}`);
+        
         try {
-            const { error: uploadError } = await _supabase.storage
+            // Загружаем файл в storage
+            const { data, error: uploadError } = await _supabase.storage
                 .from(STORAGE_BUCKET)
-                .upload(filePath, file);
+                .upload(filePath, file, {
+                    cacheControl: '3600',
+                    upsert: false
+                });
             
             if (uploadError) {
                 console.error('Ошибка загрузки изображения:', uploadError);
-                continue; // Пропускаем это изображение, продолжаем с остальными
+                continue;
             }
             
+            console.log('Изображение загружено:', data);
+            
             // Получаем публичный URL
-            const { data: { publicUrl } } = _supabase.storage
+            const { data: { publicUrl } } = await _supabase.storage
                 .from(STORAGE_BUCKET)
                 .getPublicUrl(filePath);
+            
+            console.log('Публичный URL:', publicUrl);
             
             imageUrls.push(publicUrl);
             
@@ -565,7 +582,6 @@ async function uploadNewsImages(images) {
     
     return imageUrls;
 }
-
 /**
  * Обработка отправки формы создания новости
  * @param {Event} e - Событие отправки формы
@@ -614,7 +630,9 @@ async function handleAddNewsSubmit(e) {
         
         // Загружаем изображения если они есть
         if (selectedImages.length > 0) {
+            console.log(`Загрузка ${selectedImages.length} изображений...`);
             imageUrls = await uploadNewsImages(selectedImages);
+            console.log('Загруженные изображения:', imageUrls);
         }
         
         // Создаем новость в базе данных
@@ -624,7 +642,7 @@ async function handleAddNewsSubmit(e) {
                 {
                     title: title,
                     content: content,
-                    image_urls: imageUrls,
+                    image_urls: imageUrls, // Сохраняем массив URL
                     author_id: currentUser.id,
                     created_at: new Date().toISOString(),
                     updated_at: new Date().toISOString()
@@ -633,11 +651,12 @@ async function handleAddNewsSubmit(e) {
             .select();
         
         if (error) {
+            console.error('Ошибка создания новости:', error);
             throw error;
         }
         
         // Показываем успешное сообщение
-        showNotification('Новость успешно опубликована!', 'success');
+        showNotification(`Новость успешно опубликована! ${imageUrls.length > 0 ? 'Загружено ' + imageUrls.length + ' изображений' : ''}`, 'success');
         
         // Сбрасываем форму
         resetNewsForm();
@@ -677,9 +696,15 @@ function resetNewsForm() {
  */
 async function openNewsDetails(newsId) {
     try {
+                // ДОБАВЬТЕ ЭТИ СТРОКИ ↓↓↓
+        console.log('🟢 openNewsDetails вызвана для новости ID:', newsId);
+        console.log('🟢 Текущий пользователь:', currentUser ? 'Авторизован' : 'Не авторизован');
+        console.log('🟢 Роль пользователя:', currentUserRole);
+
         currentNewsId = newsId;
         
         // Получаем данные новости
+               // Получаем данные новости
         const { data: news, error: newsError } = await _supabase
             .from('news')
             .select('*')
@@ -689,6 +714,24 @@ async function openNewsDetails(newsId) {
         if (newsError) {
             console.error('Ошибка загрузки новости:', newsError);
             throw newsError;
+        }
+        
+        // ДОБАВЬТЕ ЭТИ СТРОКИ ↓↓↓
+        console.log('🟢 Данные новости получены:', news);
+        console.log('🟢 Заголовок новости:', news.title);
+        console.log('🟢 Количество изображений:', news.image_urls ? news.image_urls.length : 0);
+        console.log('🟢 URL изображений:', news.image_urls);
+        console.log('🟢 Тип image_urls:', typeof news.image_urls);
+        
+        // Проверяем массив ли это
+        if (news.image_urls) {
+            console.log('🟢 image_urls является массивом?', Array.isArray(news.image_urls));
+            if (Array.isArray(news.image_urls)) {
+                news.image_urls.forEach((url, index) => {
+                    console.log(`🟢 Изображение ${index}:`, url);
+                    console.log(`🟢 Длина URL ${index}:`, url.length);
+                });
+            }
         }
         
         // Получаем информацию об авторе
@@ -761,22 +804,69 @@ async function openNewsDetails(newsId) {
             minute: '2-digit'
         });
         
-        // Генерируем HTML для изображений
+                // Генерируем HTML для изображений
         let imagesHTML = '';
-        if (news.image_urls && news.image_urls.length > 0) {
-            imagesHTML = `
-                <div class="news-details-images">
-                    <h4><i class="fas fa-images"></i> Прикрепленные изображения</h4>
-                    <div class="news-images-grid">
-                        ${news.image_urls.map(url => `
-                            <div class="news-image-item">
-                                <img src="${url}" alt="Изображение новости" onclick="openImageModal('${url}')">
-                            </div>
-                        `).join('')}
+        console.log('🟢 Проверяем наличие изображений...');
+        
+        if (news.image_urls && Array.isArray(news.image_urls) && news.image_urls.length > 0) {
+            console.log('🟢 Изображения найдены! Количество:', news.image_urls.length);
+            console.log('🟢 Создаем HTML для изображений...');
+            
+            // Проверяем каждый URL
+            const validUrls = news.image_urls.filter(url => {
+                const isValid = url && typeof url === 'string' && url.length > 0;
+                if (!isValid) {
+                    console.warn('⚠️ Найден невалидный URL:', url);
+                }
+                return isValid;
+            });
+            
+            console.log('🟢 Валидных URL:', validUrls.length);
+            
+            if (validUrls.length > 0) {
+                imagesHTML = `
+                    <div class="news-details-images">
+                        <h4><i class="fas fa-images"></i> Прикрепленные изображения (${validUrls.length})</h4>
+                        <div class="news-images-grid">
+                            ${validUrls.map((url, index) => {
+                                console.log(`🟢 Добавляем изображение ${index}:`, url);
+                                return `
+                                    <div class="news-image-item">
+                                        <img src="${url}" alt="Изображение новости ${index + 1}" 
+                                             onerror="console.error('❌ Ошибка загрузки изображения:', this.src)"
+                                             onclick="openImageModal('${url}')">
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
                     </div>
-                </div>
-            `;
+                `;
+            } else {
+                console.log('🟢 Нет валидных URL для отображения');
+                imagesHTML = '<p class="no-images">Изображения не загрузились корректно</p>';
+            }
+        } else {
+            console.log('🟢 Изображений нет или они в неправильном формате');
+            console.log('🟢 image_urls:', news.image_urls);
+            console.log('🟢 Тип:', typeof news.image_urls);
+            console.log('🟢 Является массивом?', Array.isArray(news.image_urls));
+            
+            if (news.image_urls && !Array.isArray(news.image_urls)) {
+                console.log('🟢 Попробуем преобразовать в массив...');
+                // Пробуем преобразовать строку в массив
+                try {
+                    const parsed = JSON.parse(news.image_urls);
+                    if (Array.isArray(parsed)) {
+                        console.log('🟢 Успешно преобразовано в массив:', parsed);
+                        // Здесь можно обработать parsed как массив
+                    }
+                } catch (e) {
+                    console.log('🟢 Не удалось преобразовать:', e.message);
+                }
+            }
         }
+        
+        console.log('🟢 Созданный imagesHTML:', imagesHTML ? 'Есть HTML' : 'Пусто');
         
         // Генерируем HTML для комментариев
         let commentsHTML = '';
@@ -902,7 +992,14 @@ async function openNewsDetails(newsId) {
                 }
             }, 100);
         }
+                console.log('🟢 Функция openNewsDetails завершена успешно');
+        console.log('🟢 Модальное окно должно быть открыто');
         
+    } catch (error) {
+        console.error('❌ Ошибка загрузки деталей новости:', error);
+        console.error('❌ Stack trace:', error.stack);
+        showNotification('Ошибка загрузки новости. Попробуйте еще раз.', 'error');
+    }
     } catch (error) {
         console.error('Ошибка загрузки деталей новости:', error);
         showNotification('Ошибка загрузки новости. Попробуйте еще раз.', 'error');
